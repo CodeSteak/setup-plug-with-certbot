@@ -9,10 +9,12 @@ The certificates are created and renewed automatically by this application.
 
 Clone this repo and use it as template.
 
+Run `mix deps.get`
+
 You need to replace the placeholders in `config/config.exs`
 with your real data.
 
-run `mix release.init` initialize configure for a 'release'. 'Releases' come handy when using Systemd (see below).
+Run `mix release.init` initialize configure for a 'release'. 'Releases' come handy when using Systemd (see below).
 (see also [https://hexdocs.pm/distillery/](https://hexdocs.pm/distillery/)).
 
 ### Install Certbot
