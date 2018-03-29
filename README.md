@@ -2,8 +2,8 @@
 
 # Webserver
 
-This is a template for creating a __plug server__ with __letsencrypt__ certificates. It uses __Certbot__.
-The certificates can be created as user (The same as is used for the webserver).
+This is a template for creating a __plug Server__ with __letsencrypt__ certificates. It uses __Certbot__.
+The certificates are created and renewed automatically by this application.
 
 ## Setup
 
@@ -17,7 +17,7 @@ run `mix release.init` initialize configure for a 'release'. 'Releases' come han
 
 ### Install Certbot
 
-Install Certbot on your server.
+Install Certbot on your Server.
 
 See [https://certbot.eff.org/](https://certbot.eff.org/).
 
