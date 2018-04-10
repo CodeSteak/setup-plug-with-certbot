@@ -1,36 +1,38 @@
-defmodule Webserver.HTTPS.Supervisor do
+defmodule Certbot do
   use Supervisor
 
-  def child_spec(opts \\ []) do
+  def child_spec(args, opts \\ []) do
     %{
       id: __MODULE__,
-      start: {__MODULE__, :start_link, opts},
+      start: {__MODULE__, :start_link, [args, opts]},
       restart: :permanent,
       shutdown: 5000,
       type: :supervisor
     }
   end
 
-  def start_link(opts \\ []) do
-    Supervisor.start_link(__MODULE__, :ok, opts)
+  def start_link(args, opts \\ []) do
+    Supervisor.start_link(__MODULE__, args, opts)
   end
 
-  def init(:ok) do
+  def init(args) do
+    innerworker = Keyword.get(args, :worker, [])
+    IO.puts("init #{__MODULE__}")
     certbot_env = setup_cfg()
-    children = https_worker(certbot_env)
+    children = worker(certbot_env) ++ innerworker
 
     Supervisor.init(children, strategy: :one_for_one)
   end
 
   defp setup_cfg() do
-    certs_dir = Application.fetch_env!(:webserver, :certs_dir)
-    www_dir = Application.fetch_env!(:webserver, :www_dir)
-    utils_dir = Application.fetch_env!(:webserver, :utils_dir)
+    www_dir = Application.fetch_env!(:certbot, :www_dir)
+    utils_dir = Application.fetch_env!(:certbot, :utils_dir)
 
-    https_opts = Application.fetch_env!(:webserver, :https_opts)
-    keyfile = Keyword.get(https_opts, :keyfile)
+    domains = Application.fetch_env!(:certbot, :domains)
 
-    File.mkdir_p!(certs_dir)
+    keyfile =
+      Path.join([Application.fetch_env!(:certbot, :config_dir), "live", List.first(domains)])
+
     File.mkdir_p!(www_dir)
     File.mkdir_p!(utils_dir)
 
@@ -47,24 +49,22 @@ defmodule Webserver.HTTPS.Supervisor do
         """)
     end
 
-    certbot_cfg = Application.fetch_env!(:webserver, :certbot)
-
     certbot_env_args =
       [
         "--non-interactive",
         "--config-dir",
-        Keyword.get(certbot_cfg, :config_dir),
+        Application.fetch_env!(:certbot, :config_dir),
         "--work-dir",
-        Keyword.get(certbot_cfg, :work_dir),
+        Application.fetch_env!(:certbot, :work_dir),
         "--logs-dir",
-        Keyword.get(certbot_cfg, :logs_dir)
+        Application.fetch_env!(:certbot, :logs_dir)
       ] ++
-        if Keyword.get(certbot_cfg, :agree_tos) == :yes do
+        if Application.fetch_env!(:certbot, :agree_tos) == :yes do
           ["--agree-tos"]
         else
           IO.warn("You may want agree letsencrypt tos in config.exs")
         end ++
-        if Keyword.get(certbot_cfg, :testing) do
+        if Application.fetch_env!(:certbot, :testing) do
           IO.puts("running with testing server")
           ["--server", "https://acme-staging.api.letsencrypt.org/directory"]
         else
@@ -81,9 +81,8 @@ defmodule Webserver.HTTPS.Supervisor do
   end
 
   def setup_cert(certbot_env_args) do
-    utils_dir = Application.fetch_env!(:webserver, :utils_dir)
-    certbot_cfg = Application.fetch_env!(:webserver, :certbot)
-    www_dir = Application.fetch_env!(:webserver, :www_dir)
+    www_dir = Application.fetch_env!(:certbot, :www_dir)
+    utils_dir = Application.fetch_env!(:certbot, :utils_dir)
 
     File.write!(Path.join(utils_dir, "local-certbot.sh"), """
     #!/bin/sh
@@ -94,14 +93,14 @@ defmodule Webserver.HTTPS.Supervisor do
       [
         "certonly",
         "-m",
-        Keyword.get(certbot_cfg, :email),
+        Application.fetch_env!(:certbot, :email),
         "--webroot",
         "-w",
         www_dir,
         "-d",
-        Enum.join(Keyword.get(certbot_cfg, :domains), ",")
+        Enum.join(Application.fetch_env!(:certbot, :domains), ",")
       ] ++
-        if Keyword.get(certbot_cfg, :eff_email) do
+        if Application.fetch_env!(:certbot, :eff_email) do
           ["--eff-email"]
         else
           ["--no-eff-email"]
@@ -118,13 +117,9 @@ defmodule Webserver.HTTPS.Supervisor do
     end
   end
 
-  defp https_worker(certbot_env) do
+  defp worker(certbot_env) do
     [
-      {Plug.Adapters.Cowboy2,
-       scheme: :https,
-       plug: Webserver.Router,
-       options: Application.fetch_env!(:webserver, :https_opts)},
-      {Webserver.CertsRenewer, certbot_env}
+      {Certbot.CertsRenewer, certbot_env}
     ]
   end
 end

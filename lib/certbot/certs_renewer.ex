@@ -1,4 +1,4 @@
-defmodule Webserver.CertsRenewer do
+defmodule Certbot.CertsRenewer do
   use GenServer
 
   def child_spec(certbot_args) do

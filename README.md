@@ -1,57 +1,81 @@
-# WARNING: This is not yet sufficiently tested.
+# Setup Plug With Certbot
 
-# Webserver
+This is a small piece of code that automatically generates and renews (letsencrypt) certs
+using Certbot.
 
-This is a template for creating a __plug Server__ with __letsencrypt__ certificates. It uses __Certbot__.
-The certificates are created and renewed automatically by this application.
+You could probably implement it your self, but maybe it is useful.
 
-## Setup
+## Does renewing actually work?
 
-Clone this repo and use it as template.
+I guess I have to wait 60 Days to find out :/.
 
-Run `mix deps.get`
+### Including it in your code
 
-You need to replace the placeholders in `config/config.exs`
-with your real data.
-
-Run `mix release.init` initialize configure for a 'release'. 'Releases' come handy when using Systemd (see below).
-(see also [https://hexdocs.pm/distillery/](https://hexdocs.pm/distillery/)).
-
-### Install Certbot
-
-Install Certbot on your Server.
-
-See [https://certbot.eff.org/](https://certbot.eff.org/).
-
-### Use port 80 / 443
-
-You may want to use the following lines to redirect any incomming tcp connections on 80 and 443,
-since only root can open these ports on your Server.
-You may need to adopt these for your Server OS accordingly.
-
-`/etc/network/interfaces` on `Ubuntu 16.04 xenial`:
-```shell
-[...]
-
-post-up iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 4000
-post-up iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 4443
-post-up ip6tables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 4000
-post-up ip6tables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 4443
+Add this repository to your deps:
+```elixir
+def deps do
+  [
+      {:certbot, git: "https://github.com/CodeSteak/setup-plug-with-certbot", tag: "0.0.1-certbot"}
+  ]
+end
 ```
 
-### Starting
+### Configure
 
-It is best to run the webserver interactively for the first time, so you can see configuration errors immediately.
-To run the webserver interactively use:
+For configuration see `config/example_config.exs`.
+
+Certs will be generated in
+```elixir
+    [maindomain|_] = Application.fetch_env!(:certbot, :domains)
+
+    keyfiles_prefix = Path.join([Application.fetch_env!(:certbot, :config_dir), "live", maindomain])
+
+    https_cert_opts = [
+        keyfile: Path.join(keyfiles_prefix, "privkey.pem"),
+        cacertfile: Path.join(keyfiles_prefix, "chain.pem"),
+        certfile: Path.join(keyfiles_prefix, "cert.pem"),
+    ]
 ```
-MIX_ENV=prod mix release
+Append `https_cert_opts` to your https_opts.
+
+### Add Hooks In Your Code
+
+Add a Certbot Worker to your http Supervisor:
+```elixir
+def my_workers() do
+    [
+     # other workers
+        {Certbot,
+            worker: [
+                {Plug.Adapters.Cowboy2,
+                      scheme: :https,
+                      plug: Server.Router,
+                      options: <YOUR HTTPS OPTIONS>}
+            ]
+        },
+    ]
+end
 ```
-```
-_build/prod/rel/webserver/bin/webserver console
+This library will start every worker supplied in `worker:` as soon as
+the Certificates are ready.
+
+You want to put something like this in your Plug Main Router:
+```elixir
+defmodule MyServer.Router do
+  use Plug.Router
+
+
+  plug(Certbot.Plug, [])
+
+  if Application.fetch_env!(:myserver, :use_https) do
+    plug(Plug.SSL)
+  end
+
+  # rest of the stuff
+  # ...
+end
 ```
 
-### Use Systemd to start your webserver on boot
+Now you should be ready.
 
-See
-[https://hexdocs.pm/distillery/use-with-systemd.html#content](https://hexdocs.pm/distillery/use-with-systemd.html#content
-) for information.
+Feel free to open issues if you have questions.
