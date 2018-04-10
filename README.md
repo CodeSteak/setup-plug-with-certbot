@@ -1,6 +1,8 @@
-# WARNING: This is not yet sufficiently tested.
+# master branch is more useful
 
 # Webserver
+
+# WARNING: This is not yet sufficiently tested.
 
 This is a template for creating a __plug Server__ with __letsencrypt__ certificates. It uses __Certbot__.
 The certificates are created and renewed automatically by this application.
