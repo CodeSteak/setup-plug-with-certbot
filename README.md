@@ -7,7 +7,8 @@ You could probably implement it your self, but maybe it is useful.
 
 ## Does renewing actually work?
 
-I guess I have to wait 60 Days to find out :/.
+~~I guess I have to wait 60 Days to find out :/.~~
+Works for me! :D
 
 ### Including it in your code
 
