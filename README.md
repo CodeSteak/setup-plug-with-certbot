@@ -1,3 +1,9 @@
+# Note: Please don't use this.
+
+## The certbot systemd service and a reverse proxy like ngnix will be better suited for this this job.
+
+
+-----
 # Setup Plug With Certbot
 
 This is a small piece of code that automatically generates and renews (letsencrypt) certs
